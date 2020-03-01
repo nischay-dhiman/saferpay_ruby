@@ -53,13 +53,28 @@ Configure the credentials in saferpay_ruby.rb in initializers as follows:
 SaferpayRuby.configure do |config|
   config.endpoint = URI('https://test.saferpay.com/api/Payment/v1/PaymentPage/Initialize')
   #config.endpoint = URI('https://www.saferpay.com/api/Payment/v1/PaymentPage/Initialize')  # For production
-  config.terminal_id = "17989958"
-  config.customer_id = "240618"
-  config.authentication = 'Basic QVBJlzI0OTYxOF84OTI0Mzc2MDpXZWJvbmlzZUxhYkRvdEMwbQ=='
+  config.assert_endpoint = URI('https://test.saferpay.com/api/Payment/v1/PaymentPage/Assert')
+  config.terminal_id = "17989968"
+  config.customer_id = "240918"
+  config.authentication = 'Basic QVBJlzI0OTYxOF84OTI0Mzc2MDpXZWJvbmlzZUxhYkRvdEMpbQ=='
 end
 ```
 
-Then You can use the SaferpayRuby Module to initialize Payment in some controller action `initialize_payment`
+Transaction Flow
+```
+  Step 1: Payment Page Initialize
+    > Initializes the Payment and generates the RedirectUrl for the Payment Page.
+  Step 2: Redirect to the RedirectUrl
+  Step 3: Return to ReturnUrl depending on the outcome of the transaction. The ReturnUrls are defined in step 1!
+  Step 4: Payment Page Assert
+    >Gathers all the information about the payment, like LiabilityShift through 3D Secure and more, using the Token, gathered in step 1!
+  Step 5: Depending on the outcome of step 4 you may
+    > Capture/Finalize the Transaction
+    > Cancel/Abort the Transaction
+  Step 6: Transaction is finished!
+```
+Note: We have only covered Step 1 to Step 4
+
 
 ```
   def initialize_payment
@@ -77,12 +92,20 @@ Then You can use the SaferpayRuby Module to initialize Payment in some controlle
     )
     response = service.initialize_payment_api(options)
 
-    if response.kind_of? Net::HTTPSuccess
-      redirect_to JSON.parse(response.read_body)["RedirectUrl"]
-    else
-      flash[:error] = "Something Went Wrong"
-      redirect_to failure_path
-    end
+    initialize_assert_api(response, request_id)           #initialize assert API in redirect URL method
+
+    # save the details of transaction response
+  end
+
+  def initialize_assert_api(response, request_id)
+    # Record the transaction response whether it is success or failure
+    options = {
+      request_id: request_id,
+      token: response['Token']
+    }
+    service = SaferpayRuby::PaymentGatewayApi.new
+    response = service.initialize_payment_assert_api(options)
+    response_json = JSON.parse(response.read_body)
   end
 ```
 
@@ -95,7 +118,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/saferpay_ruby. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
+Bug reports and pull requests are welcome on GitHub at https://github.com/[nischay-dhiman]/saferpay_ruby. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
 ## License
 
@@ -103,4 +126,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the SaferpayRuby project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/saferpay_ruby/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the SaferpayRuby project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[nischay-dhiman]/saferpay_ruby/blob/master/CODE_OF_CONDUCT.md).

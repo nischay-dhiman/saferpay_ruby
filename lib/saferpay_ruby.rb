@@ -50,9 +50,27 @@ module SaferpayRuby
           "Fail": failure_url
         }
       }.to_json
-  
-      response = http.request(request)
-      response
+      http.request(request)
+    end
+
+    def initialize_payment_assert_api(options = {})
+      http = Net::HTTP.new(assert_endpoint.host, assert_endpoint.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Post.new(assert_endpoint)
+      request["content-type"] = 'application/json; charset=utf-8'
+      request["accept"] = 'application/json'
+      request["authorization"] = authentication
+      request.body = {
+        "RequestHeader": {
+          "SpecVersion": "1.15",
+          "CustomerId": customer_id,
+          "RequestId": options[:request_id],
+          "RetryIndicator": 0
+        },
+        "Token": options[:token]
+      }.to_json
+      http.request(request)
     end
   end
 end
